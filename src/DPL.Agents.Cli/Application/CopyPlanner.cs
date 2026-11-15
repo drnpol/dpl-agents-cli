@@ -47,13 +47,12 @@ internal sealed class CopyPlanner
                     throw new BuildException($"{label}: destination cannot be inside its source folder.");
                 }
 
-                var targetRoot = Path.Combine(destinationDirectory, Path.GetFileName(source));
                 var sourceFiles = sourceIsFile ? [source] : EnumerateSourceFiles(source, label);
                 foreach (var sourceFile in sourceFiles)
                 {
                     var target = sourceIsFile
-                        ? targetRoot
-                        : Path.Combine(targetRoot, Path.GetRelativePath(source, sourceFile));
+                        ? Path.Combine(destinationDirectory, Path.GetFileName(source))
+                        : Path.Combine(destinationDirectory, Path.GetRelativePath(source, sourceFile));
                     RejectReparsePoints(loaded.RootDirectory, target, label);
                     if (Directory.Exists(target))
                     {
