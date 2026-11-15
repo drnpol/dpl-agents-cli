@@ -92,6 +92,7 @@ public sealed class BuildCommandTests : IDisposable
         // Arrange
         var source = Path.Combine(_root, "shared", "workflow", "nested");
         Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(Path.GetDirectoryName(source)!, "overview.md"), "overview");
         await File.WriteAllTextAsync(Path.Combine(source, "rules.md"), "original");
         var config = await WriteConfigAsync("""
             version: 1
@@ -103,15 +104,21 @@ public sealed class BuildCommandTests : IDisposable
                   - skills/first/instructions
                   - skills/second/instructions
             """);
-        var first = Path.Combine(_root, "skills", "first", "instructions", "workflow", "nested", "rules.md");
-        var second = Path.Combine(_root, "skills", "second", "instructions", "workflow", "nested", "rules.md");
+        var first = Path.Combine(_root, "skills", "first", "instructions", "nested", "rules.md");
+        var second = Path.Combine(_root, "skills", "second", "instructions", "nested", "rules.md");
+        var firstRootFile = Path.Combine(_root, "skills", "first", "instructions", "overview.md");
+        var secondRootFile = Path.Combine(_root, "skills", "second", "instructions", "overview.md");
 
         // Act and assert
         Assert.Equal(0, await Program.Main(["build", "--config", config, "--dry-run"]));
         Assert.False(File.Exists(first));
+        Assert.False(File.Exists(firstRootFile));
         Assert.Equal(0, await Program.Main(["build", "--config", config]));
         Assert.Equal("original", await File.ReadAllTextAsync(first));
         Assert.Equal("original", await File.ReadAllTextAsync(second));
+        Assert.Equal("overview", await File.ReadAllTextAsync(firstRootFile));
+        Assert.Equal("overview", await File.ReadAllTextAsync(secondRootFile));
+        Assert.False(Directory.Exists(Path.Combine(_root, "skills", "first", "instructions", "workflow")));
         await File.WriteAllTextAsync(first, "changed locally");
         Assert.Equal(0, await Program.Main(["build", "--config", config]));
         Assert.Equal("original", await File.ReadAllTextAsync(first));
