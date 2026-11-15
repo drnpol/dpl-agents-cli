@@ -1,36 +1,29 @@
-﻿using System;
-using Serilog;
+using DPL.Agents.Cli.Application;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Spectre.Console;
 
 namespace DPL.Agents.Cli;
 
-public class Program {
-    public static void Main(string[] args)
+/// <summary>Configures and starts the dpl command-line tool.</summary>
+public static class Program
+{
+    /// <summary>Runs the requested command.</summary>
+    /// <param name="args">Command-line arguments.</param>
+    /// <returns>Zero on success, two for usage errors, or one for build errors.</returns>
+    public static async Task<int> Main(string[] args)
     {
-        var builder = Host.CreateApplicationBuilder(args);
+        ArgumentNullException.ThrowIfNull(args);
 
-        builder.Services.AddSerilog(configuration =>
-        {
-            var outputTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} - {Level:u4} - {Message:lj}{Exception}{NewLine}";
-            configuration
-            .Enrich.FromLogContext()
-            .WriteTo.Console()
-            .WriteTo.File(
-                $".\\logs\\application-.log",
-                outputTemplate: outputTemplate,
-                rollingInterval: RollingInterval.Day,
-                rollOnFileSizeLimit: true
-            );
-        });
-        builder.Services.AddSingleton<Application>();
-        
-        var host = builder.Build();
+        var builder = Host.CreateApplicationBuilder();
+        builder.Services.AddSingleton<IAnsiConsole>(AnsiConsole.Console);
+        builder.Services.AddSingleton<ICommand, BuildCommand>();
+        builder.Services.AddSingleton<CommandDispatcher>();
+        builder.Services.AddSingleton<BuildConfigurationLoader>();
+        builder.Services.AddSingleton<CopyPlanner>();
+        builder.Services.AddSingleton<CopyExecutor>();
 
-        var application = host.Services.GetRequiredService<Application>();
-
-        application.Run();
-        
+        using var host = builder.Build();
+        return await host.Services.GetRequiredService<CommandDispatcher>().RunAsync(args).ConfigureAwait(false);
     }
 }
